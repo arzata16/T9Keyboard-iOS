@@ -7,8 +7,7 @@ on:
 
 jobs:
   build:
-    # Menggunakan macos-13 (Standard Intel runner yang tersedia gratis di semua akun GitHub)
-    runs-on: macos-13
+    runs-on: macos-latest
 
     steps:
     - name: Checkout Code
@@ -22,10 +21,9 @@ jobs:
       run: |
         xcodebuild clean build \
           -project T9Keyboard.xcodeproj \
-          -scheme T9Keyboard \
+          -target T9Keyboard \
           -configuration Release \
           -sdk iphoneos \
-          -destination 'generic/platform=iOS' \
           CONFIGURATION_BUILD_DIR=build/Release-iphoneos \
           CODE_SIGNING_ALLOWED=NO \
           CODE_SIGNING_REQUIRED=NO \
