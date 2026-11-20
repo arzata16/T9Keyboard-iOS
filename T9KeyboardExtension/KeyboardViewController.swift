@@ -188,12 +188,16 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIIn
     
     // MARK: - Engine Callbacks
     private func setupEngineCallbacks() {
-        engine.onMultiTapPreview = { [weak self] char in
-            self?.suggestionBar.setSuggestions([char])
+        engine.onMultiTapCharChanged = { [weak self] char, isReplacing, candidates, selectedIndex in
+            guard let self = self else { return }
+            if isReplacing {
+                self.textDocumentProxy.deleteBackward()
+            }
+            self.textDocumentProxy.insertText(char)
+            self.suggestionBar.setSuggestions(candidates, activeIndex: selectedIndex)
         }
         
-        engine.onMultiTapCommit = { [weak self] char in
-            self?.textDocumentProxy.insertText(char)
+        engine.onMultiTapCommitted = { [weak self] in
             self?.suggestionBar.setSuggestions([])
         }
     }
@@ -238,6 +242,7 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIIn
             let updated = engine.removeLastDigit()
             suggestionBar.setSuggestions(updated)
         } else {
+            engine.cancelPendingMultiTap()
             textDocumentProxy.deleteBackward()
         }
     }
@@ -250,6 +255,8 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIIn
             }
             engine.resetSequence()
             suggestionBar.setSuggestions([])
+        } else if engine.currentMode == .multiTap {
+            engine.commitPendingMultiTap()
         }
         textDocumentProxy.insertText("\n")
     }
@@ -269,6 +276,7 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIIn
             sender.numberLabel.text = "T9"
         }
         engine.resetSequence()
+        engine.cancelPendingMultiTap()
         suggestionBar.setSuggestions([])
     }
     
@@ -284,9 +292,20 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIIn
     
     // MARK: - SuggestionBarDelegate
     func didSelectSuggestion(_ word: String) {
-        textDocumentProxy.insertText(word + " ")
-        engine.resetSequence()
-        suggestionBar.setSuggestions([])
+        if engine.currentMode == .multiTap {
+            if engine.hasPendingMultiTap {
+                textDocumentProxy.deleteBackward()
+                textDocumentProxy.insertText(word)
+                engine.commitPendingMultiTap()
+            } else {
+                textDocumentProxy.insertText(word)
+            }
+            suggestionBar.setSuggestions([])
+        } else {
+            textDocumentProxy.insertText(word + " ")
+            engine.resetSequence()
+            suggestionBar.setSuggestions([])
+        }
     }
     
     private func updateTheme() {

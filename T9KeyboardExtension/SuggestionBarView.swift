@@ -68,7 +68,7 @@ class SuggestionBarView: UIView {
         applyTheme()
     }
     
-    func setSuggestions(_ words: [String]) {
+    func setSuggestions(_ words: [String], activeIndex: Int = 0) {
         if words.isEmpty {
             placeholderLabel.isHidden = false
             for btn in suggestionButtons {
@@ -87,7 +87,6 @@ class SuggestionBarView: UIView {
             } else {
                 button = UIButton(type: .system)
                 button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-                button.backgroundColor = UIColor.secondarySystemFill
                 button.layer.cornerRadius = 6
                 button.clipsToBounds = true
                 button.isExclusiveTouch = false
@@ -97,13 +96,15 @@ class SuggestionBarView: UIView {
             }
             
             button.setTitle(word, for: .normal)
-            if index == 0 {
-                // Saran utama diberi aksen bold
+            if index == activeIndex {
+                // Saran aktif diberi aksen bold dan warna tint
                 button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .bold)
                 button.setTitleColor(tintColor, for: .normal)
+                button.backgroundColor = UIColor.systemFill
             } else {
                 button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .medium)
                 button.setTitleColor(UIColor.label, for: .normal)
+                button.backgroundColor = UIColor.secondarySystemFill
             }
         }
         

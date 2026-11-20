@@ -53,8 +53,8 @@ class T9Engine {
     private var lastTappedKey: String?
     private var multiTapIndex: Int = 0
     private var multiTapTimer: Timer?
-    var onMultiTapCommit: ((String) -> Void)?
-    var onMultiTapPreview: ((String) -> Void)?
+    var onMultiTapCharChanged: ((_ char: String, _ isReplacing: Bool, _ candidates: [String], _ selectedIndex: Int) -> Void)?
+    var onMultiTapCommitted: (() -> Void)?
     
     init() {
         buildDictionaryIndex()
@@ -163,35 +163,52 @@ class T9Engine {
     
     // MARK: - Multi-Tap Mode Methods
     
+    var hasPendingMultiTap: Bool {
+        return lastTappedKey != nil
+    }
+    
     func handleMultiTap(key: String) {
         multiTapTimer?.invalidate()
         
         guard let chars = digitToLetters[key], !chars.isEmpty else { return }
         
+        let isReplacing: Bool
         if lastTappedKey == key {
             multiTapIndex = (multiTapIndex + 1) % chars.count
+            isReplacing = true
         } else {
             // Commit huruf sebelumnya jika ganti tombol
             commitPendingMultiTap()
             lastTappedKey = key
             multiTapIndex = 0
+            isReplacing = false
         }
         
         let currentChar = applyCapitalization(chars[multiTapIndex])
-        onMultiTapPreview?(currentChar)
+        let candidateList = chars.map { applyCapitalization($0) }
         
-        // Timer 0.55 detik untuk commit otomatis (lebih responsif dari 0.8s)
-        multiTapTimer = Timer.scheduledTimer(withTimeInterval: 0.55, repeats: false) { [weak self] _ in
+        onMultiTapCharChanged?(currentChar, isReplacing, candidateList, multiTapIndex)
+        
+        // Timer 0.40 detik untuk commit otomatis (sangat cepat & responsif seperti GO Keyboard)
+        multiTapTimer = Timer.scheduledTimer(withTimeInterval: 0.40, repeats: false) { [weak self] _ in
             self?.commitPendingMultiTap()
         }
     }
     
     func commitPendingMultiTap() {
         multiTapTimer?.invalidate()
-        guard let key = lastTappedKey, let chars = digitToLetters[key] else { return }
-        let char = applyCapitalization(chars[multiTapIndex])
-        onMultiTapCommit?(char)
+        multiTapTimer = nil
+        guard lastTappedKey != nil else { return }
         lastTappedKey = nil
         multiTapIndex = 0
+        onMultiTapCommitted?()
+    }
+    
+    func cancelPendingMultiTap() {
+        multiTapTimer?.invalidate()
+        multiTapTimer = nil
+        lastTappedKey = nil
+        multiTapIndex = 0
+        onMultiTapCommitted?()
     }
 }
