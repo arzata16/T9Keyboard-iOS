@@ -1,6 +1,11 @@
 import UIKit
 
-class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
+class KeyboardViewController: UIInputViewController, SuggestionBarDelegate, UIInputViewAudioFeedback {
+    
+    // Suara klik keyboard native aktif
+    var enableInputClicksWhenVisible: Bool {
+        return true
+    }
     
     // Engine & State
     private let engine = T9Engine.shared
@@ -13,12 +18,14 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
     
     private var nextKeyboardButton: UIButton?
     private var heightConstraint: NSLayoutConstraint?
+    private var backspaceTimer: Timer?
     
     // Cache tombol untuk update teks/mode
     private var keyButtons: [T9KeyButton] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        T9KeyButton.feedbackGenerator.prepare()
         setupUI()
         setupEngineCallbacks()
     }
@@ -90,7 +97,7 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
         row1.addArrangedSubview(createKey("1", letters: ".,?!", isFunc: false))
         row1.addArrangedSubview(createKey("2", letters: "abc", isFunc: false))
         row1.addArrangedSubview(createKey("3", letters: "def", isFunc: false))
-        row1.addArrangedSubview(createActionKey("⌫", action: #selector(handleBackspace)))
+        row1.addArrangedSubview(createBackspaceKey())
         keypadStackView.addArrangedSubview(row1)
         
         // Row 2: [4: GHI] [5: JKL] [6: MNO] [🌐 Next Keyboard / Globe]
@@ -109,12 +116,12 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
         row3.addArrangedSubview(createActionKey("↵", action: #selector(handleReturn)))
         keypadStackView.addArrangedSubview(row3)
         
-        // Row 4: [T9/ABC Mode] [⇧ Shift] [0: Spasi] [123 / Simbol]
+        // Row 4: [T9/ABC Mode] [0: Spasi] [123 / Simbol] [⇧ Shift/Caps]
         let row4 = createRowStackView()
         row4.addArrangedSubview(createActionKey("T9", action: #selector(toggleTypingMode)))
-        row4.addArrangedSubview(createActionKey("⇧", action: #selector(handleShift)))
         row4.addArrangedSubview(createKey("0", letters: "spasi", isFunc: false, customAction: #selector(handleSpace)))
         row4.addArrangedSubview(createActionKey("123", action: #selector(toggleSymbolMode)))
+        row4.addArrangedSubview(createActionKey("⇧", action: #selector(handleShift)))
         keypadStackView.addArrangedSubview(row4)
     }
     
@@ -128,10 +135,11 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
     
     private func createKey(_ number: String, letters: String, isFunc: Bool, customAction: Selector? = nil) -> T9KeyButton {
         let btn = T9KeyButton(number: number, letters: letters, isFunc: isFunc)
+        btn.isExclusiveTouch = false
         if let custom = customAction {
-            btn.addTarget(self, action: custom, for: .touchUpInside)
+            btn.addTarget(self, action: custom, for: .touchDown)
         } else {
-            btn.addTarget(self, action: #selector(numberKeyTapped(_:)), for: .touchUpInside)
+            btn.addTarget(self, action: #selector(numberKeyTapped(_:)), for: .touchDown)
         }
         keyButtons.append(btn)
         return btn
@@ -139,13 +147,39 @@ class KeyboardViewController: UIInputViewController, SuggestionBarDelegate {
     
     private func createActionKey(_ title: String, action: Selector) -> T9KeyButton {
         let btn = T9KeyButton(number: title, letters: "", isFunc: true)
-        btn.addTarget(self, action: action, for: .touchUpInside)
+        btn.isExclusiveTouch = false
+        btn.addTarget(self, action: action, for: .touchDown)
         keyButtons.append(btn)
         return btn
     }
     
+    private func createBackspaceKey() -> T9KeyButton {
+        let btn = T9KeyButton(number: "⌫", letters: "", isFunc: true)
+        btn.isExclusiveTouch = false
+        btn.addTarget(self, action: #selector(backspaceTouchDown), for: .touchDown)
+        btn.addTarget(self, action: #selector(backspaceTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        keyButtons.append(btn)
+        return btn
+    }
+    
+    @objc private func backspaceTouchDown() {
+        handleBackspace()
+        backspaceTimer?.invalidate()
+        backspaceTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
+            self?.backspaceTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+                self?.handleBackspace()
+            }
+        }
+    }
+    
+    @objc private func backspaceTouchUp() {
+        backspaceTimer?.invalidate()
+        backspaceTimer = nil
+    }
+    
     private func createGlobeKey() -> UIButton {
         let btn = T9KeyButton(number: "🌐", letters: "", isFunc: true)
+        btn.isExclusiveTouch = false
         btn.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
         self.nextKeyboardButton = btn
         keyButtons.append(btn)

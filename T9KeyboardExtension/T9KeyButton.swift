@@ -1,6 +1,14 @@
 import UIKit
 
 class T9KeyButton: UIButton {
+    static let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+    
+    static func playFeedback() {
+        feedbackGenerator.impactOccurred()
+        feedbackGenerator.prepare()
+        UIDevice.current.playInputClick()
+    }
+    
     let numberLabel = UILabel()
     let lettersLabel = UILabel()
     private let stackView = UIStackView()
@@ -25,9 +33,10 @@ class T9KeyButton: UIButton {
         self.layer.masksToBounds = false
         self.clipsToBounds = true
         self.translatesAutoresizingMaskIntoConstraints = false
+        self.isExclusiveTouch = false
         
-        // Haptic feedback & click sound
-        self.addTarget(self, action: #selector(playFeedback), for: .touchDown)
+        // Haptic feedback & click sound instan saat disentuh (touchDown)
+        self.addTarget(self, action: #selector(handleTouchDownFeedback), for: .touchDown)
         
         if isFunctionKey {
             numberLabel.text = number
@@ -82,10 +91,8 @@ class T9KeyButton: UIButton {
         }
     }
     
-    @objc private func playFeedback() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-        UIDevice.current.playInputClick()
+    @objc private func handleTouchDownFeedback() {
+        T9KeyButton.playFeedback()
     }
     
     override var isHighlighted: Bool {

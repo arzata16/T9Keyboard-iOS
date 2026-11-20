@@ -180,8 +180,8 @@ class T9Engine {
         let currentChar = applyCapitalization(chars[multiTapIndex])
         onMultiTapPreview?(currentChar)
         
-        // Timer 0.8 detik untuk commit otomatis
-        multiTapTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { [weak self] _ in
+        // Timer 0.55 detik untuk commit otomatis (lebih responsif dari 0.8s)
+        multiTapTimer = Timer.scheduledTimer(withTimeInterval: 0.55, repeats: false) { [weak self] _ in
             self?.commitPendingMultiTap()
         }
     }

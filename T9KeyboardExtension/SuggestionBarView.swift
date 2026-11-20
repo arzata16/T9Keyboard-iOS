@@ -10,6 +10,8 @@ class SuggestionBarView: UIView {
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
     private let dividerLine = UIView()
+    private let placeholderLabel = UILabel()
+    private var suggestionButtons: [UIButton] = []
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -36,6 +38,12 @@ class SuggestionBarView: UIView {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(stackView)
         
+        placeholderLabel.text = "Ketik angka untuk prediksi T9..."
+        placeholderLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
+        placeholderLabel.textColor = UIColor.tertiaryLabel
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+        stackView.addArrangedSubview(placeholderLabel)
+        
         dividerLine.translatesAutoresizingMaskIntoConstraints = false
         addSubview(dividerLine)
         
@@ -61,21 +69,34 @@ class SuggestionBarView: UIView {
     }
     
     func setSuggestions(_ words: [String]) {
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        
         if words.isEmpty {
-            let placeholder = UILabel()
-            placeholder.text = "Ketik angka untuk prediksi T9..."
-            placeholder.font = UIFont.systemFont(ofSize: 13, weight: .regular)
-            placeholder.textColor = UIColor.tertiaryLabel
-            stackView.addArrangedSubview(placeholder)
+            placeholderLabel.isHidden = false
+            for btn in suggestionButtons {
+                btn.isHidden = true
+            }
             return
         }
         
+        placeholderLabel.isHidden = true
+        
         for (index, word) in words.enumerated() {
-            let button = UIButton(type: .system)
-            button.setTitle(word, for: .normal)
+            let button: UIButton
+            if index < suggestionButtons.count {
+                button = suggestionButtons[index]
+                button.isHidden = false
+            } else {
+                button = UIButton(type: .system)
+                button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+                button.backgroundColor = UIColor.secondarySystemFill
+                button.layer.cornerRadius = 6
+                button.clipsToBounds = true
+                button.isExclusiveTouch = false
+                button.addTarget(self, action: #selector(suggestionTapped(_:)), for: .touchDown)
+                stackView.addArrangedSubview(button)
+                suggestionButtons.append(button)
+            }
             
+            button.setTitle(word, for: .normal)
             if index == 0 {
                 // Saran utama diberi aksen bold
                 button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .bold)
@@ -84,22 +105,18 @@ class SuggestionBarView: UIView {
                 button.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .medium)
                 button.setTitleColor(UIColor.label, for: .normal)
             }
-            
-            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-            button.backgroundColor = UIColor.secondarySystemFill
-            button.layer.cornerRadius = 6
-            button.clipsToBounds = true
-            
-            button.addTarget(self, action: #selector(suggestionTapped(_:)), for: .touchUpInside)
-            stackView.addArrangedSubview(button)
+        }
+        
+        if words.count < suggestionButtons.count {
+            for i in words.count..<suggestionButtons.count {
+                suggestionButtons[i].isHidden = true
+            }
         }
     }
     
     @objc private func suggestionTapped(_ sender: UIButton) {
         guard let title = sender.currentTitle else { return }
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-        UIDevice.current.playInputClick()
+        T9KeyButton.playFeedback()
         delegate?.didSelectSuggestion(title)
     }
     
